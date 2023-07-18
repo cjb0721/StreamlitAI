@@ -1,6 +1,4 @@
 import streamlit as st
-from langchain import FAISS
-from langchain.embeddings import OpenAIEmbeddings
 
 from utils import add_to_local, get_data_info, remove_file
 
