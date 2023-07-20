@@ -1,19 +1,22 @@
 import streamlit as st
 
-from utils import add_to_local, get_data_info, remove_file
+from utils import add_to_local, get_data_info, remove_file, embed_docs, text_to_docs, search_docs, get_answer
 
 
 def delete_file(item):
+    st.write(item,st.session_state.files)
     st.session_state.files.pop(item["key"])
+    st.session_state.files_data.pop(item["file"])
     remove_file(item["file"])
 
 
 def init_data():
     info = get_data_info()
-    st.session_state.files = {
-        i+1: file_name
-        for i, file_name in enumerate(info["files"])
-    }
+    st.session_state.files = []
+    st.session_state.files_data = {}
+    for item in info["files"]:
+        st.session_state.files.append(item["name"])
+        st.session_state.files_data.update({item["name"]: item["body"]})
     return info
 
 
@@ -55,10 +58,20 @@ def chat():
     with col_3:
         button_clear = st.button("Clear History")
     st.markdown("---")
+    st.write(st.session_state)
 
     if button_ask and query:
         # TODO 1.获取文件内容 2.获取答案 3.记录输入输出内容
-        st.markdown(query)
+        files_body_str = "\n".join(st.session_state.files_data.values())
+        text = text_to_docs(files_body_str)
+        st.markdown("---1")
+        index = embed_docs(text)
+        st.markdown("---2")
+        sources = search_docs(index, query)
+        st.markdown("---3")
+        answer = get_answer(sources, query)
+        st.markdown("---4")
+        st.markdown(answer)
     if button_count:
         # TODO 展示输入输出内容
         st.text_area("")
@@ -71,20 +84,19 @@ def forget():
     col_1, col_2 = st.columns(2)
     data = init_data()
     with col_1:
-        col_1.metric("Total Documents", data["len"])
-        for file in data["files"]:
-            st.button(f"✔️ {file}")
+        col_1.metric("Total Documents", data["count"])
+        for item in data["files"]:
+            st.button(f"✔️ {item['name']}")
 
     with col_2:
         col_2.metric("Total Size (bytes)", data["total_size"])
-        for index, file in enumerate(data["files"]):
-            if (index + 1) in st.session_state.files:
-                st.button(
-                    '删除',
-                    key=index + 1,
-                    on_click=delete_file,
-                    args=[{"key": index + 1, "file": file}]
-                )
+        for item in data["files"]:
+            st.button(
+                '删除',
+                key=item["index"],
+                on_click=delete_file,
+                args=[{"key": item["index"], "file": item["name"]}]
+            )
 
 
 def init_home():
@@ -119,4 +131,6 @@ def init_home():
 
 
 if __name__ == '__main__':
+    st.cache_data.clear()
+    init_data()
     init_home()
