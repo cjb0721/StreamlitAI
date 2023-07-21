@@ -1,4 +1,5 @@
 import streamlit as st
+import openai
 
 from utils import add_to_local, get_data_info, remove_file, embed_docs, text_to_docs, search_docs, get_answer
 
@@ -112,6 +113,21 @@ def init_home():
        </style>
    """
     st.caption(hide_default_format, unsafe_allow_html=True)
+
+    openai.api_key = "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"
+
+    response = openai.ChatCompletion.create(
+      model="gpt-3.5-turbo",
+      messages=[],
+      temperature=1,
+      max_tokens=256,
+      top_p=1,
+      frequency_penalty=0,
+      presence_penalty=0
+    )
+    
+    st.write(response)
+    
     st.write("# Welcome to Streamlit! 👋")
     st.markdown("---")
     genre = st.radio(
