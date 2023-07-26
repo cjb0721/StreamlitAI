@@ -1,24 +1,30 @@
 import streamlit as st
-import openai
+from utils import (
+    add_to_local,
+    get_knowledge,
+    parse_sources,
+    remove_file,
+    embed_docs,
+    text_to_docs,
+    search_docs,
+    get_chat_history,
+    save_chat_history,
+    clear_chat_history
+)
 
-from utils import add_to_local, get_data_info, remove_file, embed_docs, text_to_docs, search_docs, get_answer
 
-
-def delete_file(item):
-    st.write(item,st.session_state.files)
-    st.session_state.files.pop(item["key"])
-    st.session_state.files_data.pop(item["file"])
-    remove_file(item["file"])
+def delete_file(file):
+    st.session_state.knowledge["files"]["data"] = [
+        item
+        for item in st.session_state.knowledge["files"]["data"]
+        if file["key"] != item["key"]
+    ]
+    remove_file(file["name"])
 
 
 def init_data():
-    info = get_data_info()
-    st.session_state.files = []
-    st.session_state.files_data = {}
-    for item in info["files"]:
-        st.session_state.files.append(item["name"])
-        st.session_state.files_data.update({item["name"]: item["body"]})
-    return info
+    st.session_state.knowledge = get_knowledge()
+    st.session_state.chat_history = get_chat_history()
 
 
 def add_knowledge():
@@ -58,45 +64,50 @@ def chat():
         button_count = st.button("Count Tokens")
     with col_3:
         button_clear = st.button("Clear History")
-    st.markdown("---")
-    st.write(st.session_state)
 
     if button_ask and query:
-        # TODO 1.获取文件内容 2.获取答案 3.记录输入输出内容
-        files_body_str = "\n".join(st.session_state.files_data.values())
-        text = text_to_docs(files_body_str)
-        st.markdown("---1")
-        index = embed_docs(text)
-        st.markdown("---2")
+        contents = [
+            item["content"]
+            for item in st.session_state.knowledge["files"]["data"]
+        ]
+        docs = text_to_docs(contents)
+        index = embed_docs(docs)
         sources = search_docs(index, query)
-        st.markdown("---3")
-        answer = get_answer(sources, query)
-        st.markdown("---4")
+        answer = parse_sources(sources)
+        st.markdown("---")
         st.markdown(answer)
+        save_chat_history({"question": query, "answer": answer})
+
     if button_count:
-        # TODO 展示输入输出内容
-        st.text_area("")
+        st.markdown("---")
+        st.code(st.session_state.chat_history)
     if button_clear:
-        # TODO 清除输出记录
+        clear_chat_history()
+        st.markdown("---")
         st.info("Clear success!")
 
 
 def forget():
     col_1, col_2 = st.columns(2)
-    data = init_data()
     with col_1:
-        col_1.metric("Total Documents", data["count"])
-        for item in data["files"]:
+        col_1.metric(
+            "Total Documents",
+            st.session_state.knowledge["files"]["count"]
+        )
+        for item in st.session_state.knowledge["files"]["data"]:
             st.button(f"✔️ {item['name']}")
 
     with col_2:
-        col_2.metric("Total Size (bytes)", data["total_size"])
-        for item in data["files"]:
+        col_2.metric(
+            "Total Size (bytes)",
+            st.session_state.knowledge["files"]["total_size"]
+        )
+        for item in st.session_state.knowledge["files"]["data"]:
             st.button(
                 '删除',
-                key=item["index"],
+                key=item["key"],
                 on_click=delete_file,
-                args=[{"key": item["index"], "file": item["name"]}]
+                args=[{"key": item["key"], "name": item["name"]}]
             )
 
 
@@ -105,7 +116,11 @@ def init_home():
         page_title="Welcome",
         page_icon="👋",
         layout="wide",
-        menu_items={}
+        # menu_items={
+        #     'Get Help': 'https://www.extremelycoolapp.com/help',
+        #     'Report a bug': "https://www.extremelycoolapp.com/bug",
+        #     'About': "# This is a header. This is an *extremely* cool app!"
+        # }
     )
     hide_default_format = """
        <style>
@@ -113,21 +128,6 @@ def init_home():
        </style>
    """
     st.caption(hide_default_format, unsafe_allow_html=True)
-
-    openai.api_key = "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"
-
-    response = openai.ChatCompletion.create(
-      model="gpt-3.5-turbo",
-      messages=[],
-      temperature=1,
-      max_tokens=256,
-      top_p=1,
-      frequency_penalty=0,
-      presence_penalty=0
-    )
-    
-    st.write(response)
-    
     st.write("# Welcome to Streamlit! 👋")
     st.markdown("---")
     genre = st.radio(
@@ -147,6 +147,6 @@ def init_home():
 
 
 if __name__ == '__main__':
-    st.cache_data.clear()
+    st.session_state.clear()
     init_data()
     init_home()
