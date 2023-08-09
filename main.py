@@ -2,15 +2,13 @@ import streamlit as st
 from utils import (
     add_to_local,
     get_knowledge,
-    parse_sources,
     remove_file,
-    embed_docs,
-    text_to_docs,
-    search_docs,
     get_chat_history,
     save_chat_history,
-    clear_chat_history
+    clear_chat_history,
+    get_answer
 )
+from settings import HIDE_DEFAULT_FORMAT
 
 
 def delete_file(file):
@@ -70,10 +68,11 @@ def chat():
             item["content"]
             for item in st.session_state.knowledge["files"]["data"]
         ]
-        docs = text_to_docs(contents)
-        index = embed_docs(docs)
-        sources = search_docs(index, query)
-        answer = parse_sources(sources)
+        if not contents:
+            st.warning("Forget is empty")
+            return
+
+        answer = get_answer(contents, query)
         st.markdown("---")
         st.markdown(answer)
         save_chat_history({"question": query, "answer": answer})
@@ -112,22 +111,18 @@ def forget():
 
 
 def init_home():
-    st.set_page_config(
-        page_title="Welcome",
-        page_icon="👋",
-        layout="wide",
-        # menu_items={
-        #     'Get Help': 'https://www.extremelycoolapp.com/help',
-        #     'Report a bug': "https://www.extremelycoolapp.com/bug",
-        #     'About': "# This is a header. This is an *extremely* cool app!"
-        # }
-    )
-    hide_default_format = """
-       <style>
-           footer {visibility: hidden;}
-       </style>
-   """
-    st.caption(hide_default_format, unsafe_allow_html=True)
+    # st.set_page_config(
+    #     page_title="Welcome",
+    #     page_icon="👋",
+    #     layout="wide",
+    #     menu_items={
+    #         'Get Help': 'https://www.baidu.com',
+    #         'Report a bug': 'https://www.baidu.com',
+    #         'About': "# This is test app!"
+    #     }
+    # )
+
+    st.caption(HIDE_DEFAULT_FORMAT, unsafe_allow_html=True)
     st.write("# Welcome to Streamlit! 👋")
     st.markdown("---")
     genre = st.radio(
@@ -146,7 +141,6 @@ def init_home():
         forget()
 
 
-if __name__ == '__main__':
-    st.session_state.clear()
+def engine():
     init_data()
     init_home()
