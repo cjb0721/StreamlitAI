@@ -2,9 +2,10 @@ import json
 import os
 import re
 import uuid
+import streamlit as st
 from typing import List
 from langchain.llms import AzureOpenAI
-from setting import DATA_DIR, BASE_PATH
+from settings import DATA_DIR, HISTORY_DIR
 from langchain.docstore.document import Document
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.indexes import VectorstoreIndexCreator
@@ -19,7 +20,8 @@ def add_to_local(files):
     try:
         for uploaded_file in files:
             bytes_data = uploaded_file.read()
-            file_path = os.path.join(DATA_DIR, uploaded_file.name)
+            file_name = f"{st.session_state['username']}-{uploaded_file.name}"
+            file_path = os.path.join(DATA_DIR, file_name)
             if not os.path.exists(file_path):
                 with open(file_path, "w", encoding="utf8") as f:
                     f.write(bytes_data.decode("utf8"))
@@ -39,8 +41,11 @@ def add_to_local(files):
         raise e
 
 
-def get_knowledge() -> {}:
-    files_name = os.listdir(DATA_DIR)
+def get_knowledge():
+    files_name = [
+        name for name in os.listdir(DATA_DIR)
+        if st.session_state["username"] in name
+    ]
     files = {"data": []}
     total_size = 0
     count = 0
@@ -49,7 +54,7 @@ def get_knowledge() -> {}:
         file_size = os.path.getsize(os.path.join(DATA_DIR, name))
         files["data"].append({
             "key": str(uuid.uuid1()),
-            "name": name,
+            "name": name.split(f"{st.session_state['username']}-")[-1],
             "size": file_size,
             "type": file_type,
             "content": get_file_content(name)
@@ -63,6 +68,7 @@ def get_knowledge() -> {}:
 
 
 def remove_file(file_name):
+    file_name = f"{st.session_state['username']}-{file_name}"
     return os.remove(os.path.join(DATA_DIR, file_name))
 
 
@@ -73,7 +79,7 @@ def get_file_content(file_name, path=DATA_DIR):
     return data
 
 
-def text_to_docs(text):
+def text_to_docs(text: str | List[str]) -> List[Document]:
     """
     Converts a string or list of strings to a list of Documents
     with metadata.
@@ -127,17 +133,30 @@ def parse_sources(sources: str):
 
 
 def get_chat_history():
-    if os.path.exists(os.path.join(BASE_PATH, "chat_history.txt")):
-        content = get_file_content("chat_history.txt", BASE_PATH)
+    file_name = f"{st.session_state['username']}-chat_history.txt"
+    if os.path.exists(os.path.join(HISTORY_DIR, file_name)):
+        content = get_file_content(file_name, HISTORY_DIR)
         return content
     return None
 
 
 def save_chat_history(chat):
-    with open("chat_history.txt", "a", encoding="utf8") as f:
+    file_name = f"{st.session_state['username']}-chat_history.txt"
+    file_path = os.path.join(HISTORY_DIR, file_name)
+    with open(file_path, "a", encoding="utf8") as f:
         f.write(f"{json.dumps(chat, ensure_ascii=False)}\n")
 
 
 def clear_chat_history():
-    if os.path.exists(os.path.join(BASE_PATH, "chat_history.txt")):
-        return os.remove(os.path.join(BASE_PATH, "chat_history.txt"))
+    file_name = f"{st.session_state['username']}-chat_history.txt"
+    file_path = os.path.join(HISTORY_DIR, file_name)
+    if os.path.exists(file_path):
+        return os.remove(file_path)
+
+
+def get_answer(contents, query):
+    docs = text_to_docs(contents)
+    index = embed_docs(docs)
+    sources = search_docs(index, query)
+    answer = parse_sources(sources)
+    return answer
