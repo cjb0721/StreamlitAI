@@ -79,7 +79,7 @@ def get_file_content(file_name, path=DATA_DIR):
     return data
 
 
-def text_to_docs(text: str | List[str]) -> List[Document]:
+def text_to_docs():
     """
     Converts a string or list of strings to a list of Documents
     with metadata.
