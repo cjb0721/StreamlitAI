@@ -44,7 +44,7 @@ def add_to_local(files):
 def get_knowledge():
     files_name = [
         name for name in os.listdir(DATA_DIR)
-        if st.session_state["username"] in name
+        if "username" in st.session_state and st.session_state["username"] in name
     ]
     files = {"data": []}
     total_size = 0
